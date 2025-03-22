@@ -5,7 +5,7 @@ import threading
 from flask import Flask
 
 # Telegram bot tokenı
-TELEGRAM_TOKEN = "7696616406:AAHP8NOUMcPGu22Tzry4K5V3CKFKblfteNg"
+TELEGRAM_TOKEN = "8136813583:AAFRSVWe5HL7sXRCqaFEHxoaRGaot9JVLCo"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 # Google Gemini API Bilgileri
