@@ -1,5 +1,8 @@
 import requests
 import json
+import os
+import threading
+from flask import Flask
 
 # Telegram bot tokenı
 TELEGRAM_TOKEN = "7696616406:AAHP8NOUMcPGu22Tzry4K5V3CKFKblfteNg"
@@ -11,6 +14,17 @@ AI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.
 
 # Kullanıcı dili
 user_language = {}
+
+# Flask sunucusu (Render'ın botu uyku moduna almaması için)
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
 
 # Sabit cevaplar
 special_responses = {
@@ -86,4 +100,8 @@ def run_bot():
                     send_message(chat_id, reply)
 
 if __name__ == "__main__":
+    # Flask'ı arka planda başlat (Render'ın uyku moduna geçmesini önler)
+    threading.Thread(target=run_flask).start()
+
+    # Telegram botunu çalıştır
     run_bot()
