@@ -8,5 +8,5 @@
 @byhussain = 994517200235
 @azerbaijanking07 = 994507316244
 @Kantsiz = 37126755564
-@YILANPEKER = Bulunamadı
+@YILANPEKER = 
 @priwate999 = 994512296300
