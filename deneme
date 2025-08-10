@@ -1,0 +1,473 @@
+-- Darkstealer V2 - Steal A Planet GUI (Instant Pick Up removed, Position Copier & Goto Position added in Important)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Remove old GUIs
+if playerGui:FindFirstChild("DarkstealerV2_GUI") then
+    playerGui.DarkstealerV2_GUI:Destroy()
+end
+if playerGui:FindFirstChild("DarkstealerV2_Important") then
+    playerGui.DarkstealerV2_Important:Destroy()
+end
+
+-- Variables for Position Copier/Goto
+local copiedPosition = nil
+
+-- Main GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DarkstealerV2_GUI"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 400, 0, 480) -- Bigger height and width
+main.Position = UDim2.new(0.5, 0, 0.5, 0)
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+main.BorderSizePixel = 0
+main.Parent = screenGui
+main.Active = true
+main.Draggable = true
+
+local uicorner = Instance.new("UICorner", main)
+uicorner.CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextSize = 24
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = "🌑 Darkstealer V2 - Steal A Planet"
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.TextYAlignment = Enum.TextYAlignment.Center
+
+-- Functions --
+
+local function teleportToBase()
+    local baseFolder = workspace:FindFirstChild("Bases")
+    if not baseFolder then
+        warn("[Darkstealer] Bases folder not found!")
+        return
+    end
+    local ownerBase = nil
+    for _, base in pairs(baseFolder:GetChildren()) do
+        if base:FindFirstChild("Owner") and base.Owner.Value == player then
+            ownerBase = base
+            break
+        end
+    end
+    if ownerBase and ownerBase:FindFirstChild("Spawn_Point") then
+        local char = player.Character or player.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+        root.CFrame = ownerBase.Spawn_Point.CFrame + Vector3.new(0, 5, 0)
+        print("[Darkstealer] Teleported to your base!")
+    else
+        warn("[Darkstealer] Your base not found!")
+    end
+end
+
+local autoLockConnection
+local autoLockEnabled = false
+
+local function autoLockBase(toggle)
+    autoLockEnabled = toggle
+    if toggle then
+        if autoLockConnection then autoLockConnection:Disconnect() end
+        autoLockConnection = RunService.Heartbeat:Connect(function()
+            local baseFolder = workspace:FindFirstChild("Bases")
+            if not baseFolder then return end
+            for _, base in pairs(baseFolder:GetChildren()) do
+                if base:FindFirstChild("Owner") and base.Owner.Value == player then
+                    local lock = base:FindFirstChild("Lock")
+                    if lock and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        firetouchinterest(player.Character.HumanoidRootPart, lock, 0)
+                        firetouchinterest(player.Character.HumanoidRootPart, lock, 1)
+                    end
+                end
+            end
+        end)
+        print("[Darkstealer] Auto lock enabled")
+    else
+        if autoLockConnection then
+            autoLockConnection:Disconnect()
+            autoLockConnection = nil
+        end
+        print("[Darkstealer] Auto lock disabled")
+    end
+end
+
+local currentSpeed = 70
+local function setSpeed(value)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = value
+        currentSpeed = value
+        print("[Darkstealer] Speed set to "..value)
+    end
+end
+
+local noclipOn = false
+local noclipConnection
+
+local function noclipLoop()
+    local char = player.Character
+    if not char then return end
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    return RunService.Stepped:Connect(function()
+        if rootPart then
+            rootPart.CanCollide = false
+            for _, part in pairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function toggleNoclip(enabled)
+    noclipOn = enabled
+    if enabled then
+        if noclipConnection then noclipConnection:Disconnect() end
+        noclipConnection = noclipLoop()
+        player.CharacterAdded:Connect(function(char)
+            wait(1)
+            if noclipOn then
+                if noclipConnection then noclipConnection:Disconnect() end
+                noclipConnection = noclipLoop()
+            end
+        end)
+        print("[Darkstealer] Noclip enabled")
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+        print("[Darkstealer] Noclip disabled")
+    end
+end
+
+-- Position Copier
+local function copyPositionFunc()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        copiedPosition = char.HumanoidRootPart.Position
+        print("[Darkstealer] Position copied:", copiedPosition)
+    else
+        warn("[Darkstealer] Could not copy position: HumanoidRootPart missing")
+    end
+end
+
+local function gotoPositionFunc()
+    local char = player.Character
+    if copiedPosition and char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(copiedPosition)
+        print("[Darkstealer] Teleported to position:", copiedPosition)
+    else
+        warn("[Darkstealer] Cannot teleport: Position not set or character missing")
+    end
+end
+
+-- GUI Creation Helpers
+local function createButton(text, ypos, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 360, 0, 40)
+    btn.Position = UDim2.new(0, 20, 0, ypos)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.BorderSizePixel = 0
+    btn.TextColor3 = Color3.fromRGB(230, 230, 230)
+    btn.Text = text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 18
+    btn.Parent = main
+    btn.AutoButtonColor = true
+
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0, 6)
+
+    btn.MouseButton1Click:Connect(callback)
+    -- mobile support (touch)
+    if btn.TouchTap then
+        btn.TouchTap:Connect(callback)
+    else
+        -- fallback for some environments: listen for InputBegan touch on the button
+        btn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                callback()
+            end
+        end)
+    end
+
+    return btn
+end
+
+local function createSpeedSlider(ypos, defaultValue, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 360, 0, 60)
+    frame.Position = UDim2.new(0, 20, 0, ypos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = main
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 16
+    label.Text = "Speed Changer: " .. tostring(defaultValue)
+
+    local sliderFrame = Instance.new("Frame", frame)
+    sliderFrame.Size = UDim2.new(1, 0, 0, 30)
+    sliderFrame.Position = UDim2.new(0, 0, 0, 25)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    sliderFrame.BorderSizePixel = 0
+    sliderFrame.ClipsDescendants = true
+
+    local fill = Instance.new("Frame", sliderFrame)
+    fill.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+    fill.Size = UDim2.new((defaultValue - 16) / (250 - 16), 0, 1, 0)
+
+    local thumb = Instance.new("TextButton", sliderFrame)
+    thumb.Size = UDim2.new(0, 20, 1, 0)
+    thumb.Position = UDim2.new(fill.Size.X.Scale - 0.04, 0, 0, 0)
+    thumb.BackgroundColor3 = Color3.fromRGB(120, 160, 255)
+    thumb.BorderSizePixel = 0
+    thumb.Text = ""
+    thumb.AutoButtonColor = false
+    thumb.Active = true
+    thumb.Draggable = true
+
+    local UIS = UserInputService
+    local dragging = false
+    local activeInput = nil
+
+    local function updateSliderByX(xPos)
+        local absPos = sliderFrame.AbsolutePosition
+        local absSize = sliderFrame.AbsoluteSize
+        local relativeX = 0
+        if absSize.X > 0 then
+            relativeX = math.clamp((xPos - absPos.X) / absSize.X, 0, 1)
+        end
+        fill.Size = UDim2.new(relativeX, 0, 1, 0)
+        thumb.Position = UDim2.new(relativeX, -8, 0, 0)
+        local value = math.floor(16 + (250 - 16) * relativeX + 0.5)
+        label.Text = "Speed Changer: " .. tostring(value)
+        callback(value)
+    end
+
+    -- Start dragging when input begins inside the slider area (mouse or touch)
+    UIS.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            local pos = input.Position
+            local ap = sliderFrame.AbsolutePosition
+            local asz = sliderFrame.AbsoluteSize
+            if pos.X >= ap.X and pos.X <= ap.X + asz.X and pos.Y >= ap.Y and pos.Y <= ap.Y + asz.Y then
+                dragging = true
+                activeInput = input
+                updateSliderByX(pos.X)
+            end
+        end
+    end)
+
+    -- Update while dragging (mouse movement or touch)
+    UIS.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if input ~= activeInput then
+            -- For some devices InputChanged gives separate objects; accept MouseMovement or Touch
+            if not (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                return
+            end
+        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if input.Position then
+                updateSliderByX(input.Position.X)
+            end
+        end
+    end)
+
+    -- Stop dragging when input ends
+    UIS.InputEnded:Connect(function(input)
+        if dragging and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragging = false
+            activeInput = nil
+        end
+    end)
+
+    -- Thumb direct touches/clicks fallback
+    thumb.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            activeInput = input
+        end
+    end)
+    thumb.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            activeInput = nil
+        end
+    end)
+
+    return frame
+end
+
+local function createToggle(ypos, default, text, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 360, 0, 40)
+    frame.Position = UDim2.new(0, 20, 0, ypos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = main
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(0.75, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 16
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Text = text
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local toggleBtn = Instance.new("TextButton", frame)
+    toggleBtn.Size = UDim2.new(0.2, 0, 0.6, 0)
+    toggleBtn.Position = UDim2.new(0.8, 0, 0.2, 0)
+    toggleBtn.BackgroundColor3 = default and Color3.fromRGB(70, 200, 120) or Color3.fromRGB(100, 100, 100)
+    toggleBtn.Text = ""
+    toggleBtn.AutoButtonColor = false
+    toggleBtn.BorderSizePixel = 0
+
+    local corner = Instance.new("UICorner", toggleBtn)
+    corner.CornerRadius = UDim.new(0, 12)
+
+    local toggled = default
+    toggleBtn.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        toggleBtn.BackgroundColor3 = toggled and Color3.fromRGB(70, 200, 120) or Color3.fromRGB(100, 100, 100)
+        callback(toggled)
+    end)
+    -- touch support
+    if toggleBtn.TouchTap then
+        toggleBtn.TouchTap:Connect(function()
+            toggled = not toggled
+            toggleBtn.BackgroundColor3 = toggled and Color3.fromRGB(70, 200, 120) or Color3.fromRGB(100, 100, 100)
+            callback(toggled)
+        end)
+    else
+        toggleBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                toggled = not toggled
+                toggleBtn.BackgroundColor3 = toggled and Color3.fromRGB(70, 200, 120) or Color3.fromRGB(100, 100, 100)
+                callback(toggled)
+            end
+        end)
+    end
+
+    return frame
+end
+
+-- GUI Elements --
+
+local ypos = 50
+createButton("Teleport To Base", ypos, teleportToBase)
+ypos = ypos + 50
+
+createToggle(ypos, false, "Auto Lock Base", autoLockBase)
+ypos = ypos + 50
+
+createButton("📌 Copy Position", ypos, copyPositionFunc)
+ypos = ypos + 50
+
+createButton("📍 Goto Position", ypos, gotoPositionFunc)
+ypos = ypos + 50
+
+createSpeedSlider(ypos, currentSpeed, setSpeed)
+ypos = ypos + 70
+
+createToggle(ypos, false, "Noclip", toggleNoclip)
+ypos = ypos + 50
+
+-- Important Panel --
+
+local importantGui = Instance.new("ScreenGui")
+importantGui.Name = "DarkstealerV2_Important"
+importantGui.Parent = playerGui
+importantGui.ResetOnSpawn = false
+
+local importantFrame = Instance.new("Frame")
+importantFrame.Size = UDim2.new(0, 360, 0, 160)
+importantFrame.Position = UDim2.new(0.5, 0, 0.95, 0)
+importantFrame.AnchorPoint = Vector2.new(0.5, 1)
+importantFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+importantFrame.BorderSizePixel = 0
+importantFrame.Parent = importantGui
+
+local corner2 = Instance.new("UICorner", importantFrame)
+corner2.CornerRadius = UDim.new(0, 10)
+
+local importantTitle = Instance.new("TextLabel", importantFrame)
+importantTitle.Size = UDim2.new(1, -30, 0, 30)
+importantTitle.Position = UDim2.new(0, 15, 0, 0)
+importantTitle.BackgroundTransparency = 1
+importantTitle.Font = Enum.Font.GothamBold
+importantTitle.TextSize = 20
+importantTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+importantTitle.Text = "Important"
+importantTitle.TextXAlignment = Enum.TextXAlignment.Center
+importantTitle.TextYAlignment = Enum.TextYAlignment.Center
+
+local closeButton = Instance.new("TextButton", importantFrame)
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 2)
+closeButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+closeButton.Text = "✕"
+closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 20
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.AutoButtonColor = true
+closeButton.BorderSizePixel = 0
+closeButton.MouseButton1Click:Connect(function()
+    importantGui.Enabled = false
+end)
+if closeButton.TouchTap then
+    closeButton.TouchTap:Connect(function() importantGui.Enabled = false end)
+else
+    closeButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then importantGui.Enabled = false end
+    end)
+end
+
+local infoText = [[
+Teleport To Base: Useful for stealing!
+Auto Lock: Protect your base from others stealing.
+Position Copier: Copy your current location.
+Goto Position: Use to quickly go to positions, including other players' bases!
+]]
+
+local importantLabel = Instance.new("TextLabel", importantFrame)
+importantLabel.Size = UDim2.new(1, -20, 0, 110)
+importantLabel.Position = UDim2.new(0, 10, 0, 35)
+importantLabel.BackgroundTransparency = 1
+importantLabel.Font = Enum.Font.Gotham
+importantLabel.TextSize = 16
+importantLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+importantLabel.Text = infoText
+importantLabel.TextWrapped = true
+importantLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+print("[Darkstealer] GUI Loaded")
