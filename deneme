@@ -98,7 +98,7 @@ local function autoLockBase(toggle)
             autoLockConnection:Disconnect()
             autoLockConnection = nil
         end
-        print("[Darkstealer] Auto lock disabled")
+        print("[SareNZL] Auto lock disabled")
     end
 end
 
@@ -178,9 +178,9 @@ local function gotoPositionFunc()
     local char = player.Character
     if copiedPosition and char and char:FindFirstChild("HumanoidRootPart") then
         char.HumanoidRootPart.CFrame = CFrame.new(copiedPosition)
-        print("[Darkstealer] Teleported to position:", copiedPosition)
+        print("[SareNZL] Teleported to position:", copiedPosition)
     else
-        warn("[Darkstealer] Cannot teleport: Position not set or character missing")
+        warn("[SareNZL] Cannot teleport: Position not set or character missing")
     end
 end
 
@@ -399,8 +399,8 @@ ypos = ypos + 50
 createSpeedSlider(ypos, currentSpeed, setSpeed)
 ypos = ypos + 70
 
-createToggle(ypos, false, "Noclip", toggleNoclip)
-ypos = ypos + 50
+noclipEnabled = createToggle(ypos, noclipEnabled, "Noclip", toggleNoclip)
+    ypos = ypos + 50
 
 -- Important Panel --
 
@@ -470,4 +470,5 @@ importantLabel.Text = infoText
 importantLabel.TextWrapped = true
 importantLabel.TextYAlignment = Enum.TextYAlignment.Top
 
-print("[Darkstealer] GUI Loaded")
+print("[SareNZL] GUI Loaded")
+
