@@ -1,1 +1,1 @@
-HWID - max_giris_sayisi - kalan_gun - aktif_mi
+93ab81d1-d1f5-4817-8815-f1f6b69eef64 - 10 - 0 - True
